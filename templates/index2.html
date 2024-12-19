@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花洒问答助手</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .main-container {
+            max-width: 1600px;
+            width: 90%;
+            height: 90%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+        }
+        .chat-container {
+            width: 70%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #e0e0e0;
+        }
+        .image-container {
+            width: 30%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .message-content {
+            background-color: #f0f0f0;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 92%;
+        }
+        .bot .message-content {
+            background-color: white;
+        }
+        .message-content img {
+            display: inline-block;
+            max-width: 50%;
+            height: auto;
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #fff;
+        }
+        .input-area input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+        .input-area button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .input-area button:hover {
+            background-color: #0c58c1;
+        }
+        #uploaded-image {
+            max-width: 300px;
+            max-height: 300px;
+            margin-bottom: 10px;
+            border: 1px solid #e0e0e0;
+        }
+        #image-upload-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #image-upload-btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="chat-messages" id="chat-box">
+                <div class="message bot">
+                    <img src="/pictures/robot.png" alt="Bot" class="avatar">
+                    <div>
+                        <div class="message-content">
+                            您好，我是专业花洒助手，请向我提问。
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="请输入问题，按 Enter 发送">
+                <button id="send-button" onclick="sendMessage()">发送</button>
+            </div>
+        </div>
+        <div class="image-container">
+            <h3>上传图片</h3>
+            <input type="file" id="image-input" accept="image/*" style="display:none;">
+            <img id="uploaded-image" src="" style="display:none;">
+            <button id="image-upload-btn" onclick="document.getElementById('image-input').click()">选择图片</button>
+        </div>
+    </div>
+
+    <script>
+        // 复制之前的所有脚本代码
+        function appendMessage(role, message) {
+            const chatBox = document.getElementById("chat-box");
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${role}`;
+
+            const avatar = document.createElement("img");
+            avatar.src = role === "bot" ? "/pictures/robot.png" : "/pictures/user.png";
+            avatar.alt = role === "bot" ? "Bot" : "User";
+            avatar.className = "avatar";
+
+            const messageContentDiv = document.createElement("div");
+            messageContentDiv.className = "message-content";
+            messageContentDiv.innerHTML = message;
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContentDiv);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        function sendMessage() {
+            const userMessage = document.getElementById("user-input").value;
+            if (userMessage.trim() === "") return;
+
+            const uploadedImage = document.getElementById('uploaded-image');
+            const additionalContent = "回答时请尽可能的详细";
+            const fullMessage = userMessage + " " + additionalContent;
+
+            const formData = new FormData();
+            formData.append('user_message', fullMessage);
+
+            // 如果有上传的图片，也一起发送
+            if (uploadedImage.src && !uploadedImage.src.endsWith('style="display:none;"')) {
+                fetch(uploadedImage.src)
+                .then(response => response.blob())
+                .then(blob => {
+                    formData.append('image', blob, 'uploaded_image.png');
+                    sendMessageWithImage(formData);
+                });
+            } else {
+                sendMessageWithImage(formData);
+            }
+
+            appendMessage("user", userMessage);
+            document.getElementById("user-input").value = "";
+        }
+
+        function sendMessageWithImage(formData) {
+            fetch("/", {
+                method: "POST",
+                body: formData,
+            })
+            .then(response => response.json())
+            .then(data => {
+                const assistantResponse = data.response;
+                gradualDisplayMessage(assistantResponse);
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                appendMessage("bot", "抱歉，我无法获取回应。请稍后再试。");
+            });
+        }
+
+        // 图片上传预览
+        document.getElementById('image-input').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const uploadedImage = document.getElementById('uploaded-image');
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImage.src = e.target.result;
+                    uploadedImage.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 其他原有的函数保持不变（gradualDisplayMessage、键盘事件等）
+        function gradualDisplayMessage(message) {
+            const chatBox = document.getElementById("chat-box");
+            const botMessageDiv = document.createElement("div");
+            botMessageDiv.className = "message bot";
+
+            const avatar = document.createElement("img");
+            avatar.src = "/pictures/robot.png";
+            avatar.alt = "Bot";
+            avatar.className = "avatar";
+
+            const messageContentDiv = document.createElement("div");
+            messageContentDiv.className = "message-content";
+            botMessageDiv.appendChild(avatar);
+            botMessageDiv.appendChild(messageContentDiv);
+            chatBox.appendChild(botMessageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            let index = 0;
+            let currentMessage = "";
+            let interval = setInterval(function() {
+                currentMessage += message[index];
+                messageContentDiv.innerHTML = currentMessage;
+
+                if (currentMessage.includes("<img")) {
+                    messageContentDiv.innerHTML = currentMessage;
+                }
+
+                index++;
+                if (index === message.length) {
+                    clearInterval(interval);
+                }
+            }, 10);
+        }
+
+        document.getElementById("user-input").addEventListener("keydown", function(event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

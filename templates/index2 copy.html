@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>花洒问答助手</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .chat-container {
+            max-width: 1200px;
+            width: 80%; /* 设置宽度为页面的 80% */
+            height: 90%; /* 设置高度为页面的 90% */
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: row; /* 设置为水平布局 */
+        }
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            width: 80%; /* 占用80%的宽度 */
+        }
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .message-content {
+            background-color: #f0f0f0;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 92%;
+        }
+        .bot .message-content {
+            background-color: white;
+        }
+        .message-content img {
+            display: inline-block;
+            max-width: 50%; /* 限制图片最大宽度为对话框宽度的 1/2 */
+            height: auto;
+            margin-right: 10px;
+            margin-bottom: 5px; /* 为图片之间添加适当的间距 */
+        }
+        .message-meta {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #e0e0e0;
+            background-color: #fff;
+        }
+        .input-area input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+        .input-area button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+        .input-area button:hover {
+            background-color: #0c58c1;
+        }
+
+        /* 新增的右侧图片上传区域样式 */
+        .upload-area {
+            width: 20%; /* 设置宽度为20% */
+            padding: 20px;
+            background-color: #fff;
+            border-left: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+        }
+        .upload-area input {
+            margin-bottom: 10px;
+        }
+        .upload-area button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        .upload-area button:hover {
+            background-color: #218838;
+        }
+        .upload-area .clear-btn {
+            background-color: #dc3545;
+        }
+        .upload-area .clear-btn:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-messages" id="chat-box">
+            <div class="message bot">
+                <img src="/images/robot.png" alt="Bot" class="avatar">
+                <div>
+                    <div class="message-content">
+                        您好，我是专业花洒助手，请向我提问。
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="请输入问题，按 Enter 发送">
+            <button id="send-button" onclick="sendMessage()">发送</button>
+        </div>
+        <!-- 右侧图片上传区域 -->
+        <div class="upload-area">
+            <input type="file" id="image-upload" accept="image/*">
+            <button id="upload-button" onclick="uploadImage()">上传</button>
+            <button id="clear-button" class="clear-btn" onclick="clearImage()">清除</button>
+        </div>
+    </div>
+
+    <script>
+        let uploadedImage = null;
+
+        // 将消息添加到聊天框
+        function appendMessage(role, message) {
+            const chatBox = document.getElementById("chat-box");
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `message ${role}`;
+
+            // 创建头像元素
+            const avatar = document.createElement("img");
+            avatar.src = role === "bot" ? "/images/robot.png" : "/images/user.png";  // 根据角色选择头像
+            avatar.alt = role === "bot" ? "Bot" : "User";
+            avatar.className = "avatar";
+
+            // 创建消息内容元素
+            const messageContentDiv = document.createElement("div");
+            messageContentDiv.className = "message-content";
+            // 使用 innerHTML 渲染消息内容，包括图片标签
+            messageContentDiv.innerHTML = message;
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContentDiv);
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;  // 滚动到底部
+        }
+
+        // 发送用户消息
+        function sendMessage() {
+            const userMessage = document.getElementById("user-input").value;
+            if (userMessage.trim() === "") return;  // 不发送空消息
+
+            appendMessage("user", userMessage);  // 添加用户消息
+            document.getElementById("user-input").value = "";  // 清空输入框
+
+            // 自动附加内容到用户消息后面
+            const additionalContent = "回答时请尽可能的详细";
+            const fullMessage = userMessage + " " + additionalContent;
+
+            // 向后端发送请求
+            fetch("/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                    "user_message": fullMessage,  // 发送附加内容后的完整消息
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                const assistantResponse = data.response;
+                gradualDisplayMessage(assistantResponse);  // 使用逐渐输出的方式显示消息
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                appendMessage("bot", "抱歉，我无法获取回应。请稍后再试。");
+            });
+        }
+
+        // 逐渐显示消息内容
+        function gradualDisplayMessage(message) {
+            const chatBox = document.getElementById("chat-box");
+            const botMessageDiv = document.createElement("div");
+            botMessageDiv.className = "message bot";
+
+            // 创建头像元素
+            const avatar = document.createElement("img");
+            avatar.src = "/images/robot.png";  // Bot 头像
+            avatar.alt = "Bot";
+            avatar.className = "avatar";
+
+            // 创建消息内容元素
+            const messageContentDiv = document.createElement("div");
+            messageContentDiv.className = "message-content";
+            botMessageDiv.appendChild(avatar);
+            botMessageDiv.appendChild(messageContentDiv);
+            chatBox.appendChild(botMessageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;  // 滚动到底部
+
+            // 使用 innerHTML 渲染消息内容，包括图片标签
+            let index = 0;
+            let currentMessage = "";  // 用来拼接逐渐输出的内容
+            let interval = setInterval(function() {
+                currentMessage += message[index];
+                messageContentDiv.innerHTML = currentMessage;  // 逐步更新内容
+
+                // 检查是否包含图片标签，确保其正确渲染
+                if (currentMessage.includes("<img")) {
+                    messageContentDiv.innerHTML = currentMessage;
+                }
+
+                index++;
+                if (index === message.length) {
+                    clearInterval(interval);  // 停止逐渐显示
+                }
+            }, 10);  // 每10ms显示一个字符
+        }
+
+        // 处理回车发送消息
+        document.getElementById("user-input").addEventListener("keydown", function(event) {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // 图片上传功能
+        function uploadImage() {
+            const fileInput = document.getElementById("image-upload");
+            const file = fileInput.files[0];
+            if (file) {
+                uploadedImage = URL.createObjectURL(file);
+                appendMessage("user", `<img src="${uploadedImage}" alt="Uploaded Image">`);
+            } else {
+                alert("请选择一张图片");
+            }
+        }
+
+        // 清除上传的图片
+        function clearImage() {
+            uploadedImage = null;
+            document.getElementById("image-upload").value = ""; // 清空文件选择框
+        }
+    </script>
+</body>
+</html>
